@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>RailReserve DCS — Distributed Railway Booking</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+  <!-- ============ TOP HEADER BAR ============ -->
+  <header class="top-bar">
+    <div class="brand">
+      <span class="brand-icon">🚂</span>
+      <div>
+        <h1>RailReserve</h1>
+        <small>Distributed Railway Booking System — DCS Mini Project</small>
+      </div>
+    </div>
+    <div class="status-area">
+      <div class="lamport-chip">
+        <span class="live-dot"></span>
+        Lamport Clock: <strong id="headerClock">0</strong>
+      </div>
+      <button class="btn-reset" onclick="resetSystem()">↻ Reset All</button>
+    </div>
+  </header>
+
+  <!-- ============ PAGE NAVIGATION ============ -->
+  <nav class="page-nav">
+    <button class="active" onclick="showPage('booking', this)">🎫 Book Tickets</button>
+    <button onclick="showPage('lab', this)">🧪 Concurrency Lab</button>
+    <button onclick="showPage('monitor', this)">📡 System Monitor</button>
+  </nav>
+
+  <!-- ============ MAIN CONTENT ============ -->
+  <div class="main-content">
+
+    <!-- ==========================================
+         PAGE 1: BOOK TICKETS
+         ========================================== -->
+    <section id="page-booking" class="page-section active">
+
+      <!-- Train Selection -->
+      <h2 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 12px;">Select Your Train</h2>
+      <div class="train-list" id="trainList">
+        <!-- JS populates -->
+      </div>
+
+      <div style="height: 24px;"></div>
+
+      <!-- Seat Map + Booking Form -->
+      <div class="booking-layout">
+        <!-- Left: Coach Seat Map -->
+        <div class="card">
+          <div class="card-header">
+            <span id="coachTitle">Coach C1 — Seat Layout</span>
+            <span class="badge badge-blue" id="shardBadge">Western Shard</span>
+          </div>
+          <div class="card-body">
+            <!-- Legend -->
+            <div class="seat-legend">
+              <div class="legend-item"><div class="legend-dot avail"></div> Available</div>
+              <div class="legend-item"><div class="legend-dot held"></div> Held (TTL)</div>
+              <div class="legend-item"><div class="legend-dot bkd"></div> Booked</div>
+              <div class="legend-item"><div class="legend-dot cfl"></div> <strong style="color:var(--red)">Double Booked!</strong></div>
+            </div>
+
+            <div style="height: 12px;"></div>
+
+            <!-- The Coach -->
+            <div class="coach-wrapper">
+              <div class="coach-label" id="coachLabelText">AC Chair Car — C1</div>
+              <div class="coach-headers">
+                <span>← Window | Aisle</span>
+                <span></span>
+                <span>Aisle | Window →</span>
+              </div>
+              <div id="seatGrid">
+                <!-- JS populates seat rows -->
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Booking Form + Ticket -->
+        <div>
+          <!-- Booking Form Card -->
+          <div class="card" style="margin-bottom: 16px;">
+            <div class="card-header">Passenger Details</div>
+            <div class="card-body">
+              <div class="booking-form">
+                <div class="form-group">
+                  <label>Selected Seat</label>
+                  <input type="text" id="inputSeat" value="—" readonly
+                         style="font-weight: 800; color: var(--primary); text-align: center; font-size: 1.1rem; background: var(--primary-bg);">
+                </div>
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>Full Name</label>
+                    <input type="text" id="inputName" value="Rohit Sharma" placeholder="Enter name">
+                  </div>
+                  <div class="form-group">
+                    <label>Age</label>
+                    <input type="number" id="inputAge" value="28" min="1" max="120">
+                  </div>
+                </div>
+                <div class="form-group">
+                  <label>Fare</label>
+                  <input type="text" id="inputFare" value="₹460" readonly
+                         style="font-weight: 700; color: var(--green); background: var(--green-bg);">
+                </div>
+                <button class="btn btn-book" id="bookBtn" onclick="bookTicket()" disabled>
+                  🎫 Select a Seat to Book
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Latest Ticket -->
+          <div id="ticketContainer" style="display: none;">
+            <div class="ticket ticket-success" id="ticketSlip">
+              <!-- JS populates -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==========================================
+         PAGE 2: CONCURRENCY LAB
+         ========================================== -->
+    <section id="page-lab" class="page-section">
+      <div class="booking-layout">
+        <!-- Left: Controls -->
+        <div>
+          <div class="card">
+            <div class="card-header">🧪 Double-Booking Stress Test</div>
+            <div class="card-body">
+              <p style="font-size: 0.85rem; color: var(--gray-500); margin-bottom: 16px;">
+                Simulate <strong>10 passengers</strong> on different devices clicking "Book" at the exact same moment for the <em>same seat</em>. See what happens with and without distributed coordination.
+              </p>
+
+              <div class="lab-controls">
+                <!-- Train & Seat -->
+                <div class="form-row">
+                  <div class="form-group">
+                    <label>Train</label>
+                    <select id="labTrain" class="form-group" style="width:100%; padding:10px; border:1px solid var(--gray-300); border-radius:8px;">
+                      <option value="12123">12123 — Deccan Queen</option>
+                      <option value="12001">12001 — Shatabdi Express</option>
+                      <option value="12627">12627 — Karnataka Express</option>
+                    </select>
+                  </div>
+                  <div class="form-group">
+                    <label>Target Seat</label>
+                    <input type="text" id="labSeat" value="C1-1A" style="padding:10px; border:1px solid var(--gray-300); border-radius:8px;">
+                  </div>
+                </div>
+
+                <!-- Mode Selection -->
+                <div class="form-group">
+                  <label>Concurrency Mode</label>
+                </div>
+
+                <div class="mode-option selected-unsafe" id="modeUnsafe" onclick="selectLabMode('unsafe')">
+                  <h4 style="color: var(--red);">⚠️ Unsafe — The Flawed "Check-then-Act"</h4>
+                  <p>SELECT status → <em>network delay</em> → UPDATE unconditionally. Multiple threads slip into the gap. <strong>Double booking happens!</strong></p>
+                </div>
+
+                <div class="mode-option" id="modeSafe" onclick="selectLabMode('safe')">
+                  <h4 style="color: var(--green);">🛡️ Safe — DCS Coordinated</h4>
+                  <p>Uses Atomic CAS, Two-Phase Commit, or Distributed Mutex to guarantee exactly <strong>one winner</strong>.</p>
+                </div>
+
+                <!-- Algorithm (only for safe mode) -->
+                <div id="algoDiv" style="display: none;">
+                  <div class="form-group">
+                    <label>DCS Algorithm</label>
+                    <select id="labAlgo" style="width:100%; padding:10px; border:1px solid var(--gray-300); border-radius:8px;">
+                      <option value="cas">Atomic Compare-and-Set (CAS SQL)</option>
+                      <option value="2pc">Two-Phase Commit Protocol (2PC)</option>
+                      <option value="mutex">Distributed Mutex (DLM Token Lock)</option>
+                    </select>
+                  </div>
+                </div>
+
+                <button class="btn btn-stress" id="stressBtn" onclick="runStressTest()">
+                  🔥 Launch 10 Concurrent Booking Requests
+                </button>
+
+                <button class="btn" style="background: var(--gray-100); color: var(--gray-700); width: 100%;" onclick="testIdempotency()">
+                  🔁 Test Network Retry (Idempotency Key)
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: Results -->
+        <div>
+          <div class="card">
+            <div class="card-header">Test Results</div>
+            <div class="card-body">
+              <div id="labResultBanner" class="result-banner" style="display: none;"></div>
+
+              <div style="height: 12px;"></div>
+
+              <div style="max-height: 400px; overflow-y: auto;">
+                <table class="results-table" id="labResultsTable">
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>Passenger</th>
+                      <th>Server</th>
+                      <th>Outcome</th>
+                      <th>PNR</th>
+                    </tr>
+                  </thead>
+                  <tbody id="labResultsBody">
+                    <tr><td colspan="5" style="text-align:center; color: var(--gray-400); padding: 40px;">Run a test to see results here</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ==========================================
+         PAGE 3: SYSTEM MONITOR
+         ========================================== -->
+    <section id="page-monitor" class="page-section">
+
+      <!-- Architecture Overview -->
+      <div class="card" style="margin-bottom: 20px;">
+        <div class="card-header">Distributed Architecture — Multi-Tier Topology</div>
+        <div class="card-body">
+          <div class="arch-grid">
+            <!-- Tier 1: Clients -->
+            <div class="arch-tier">
+              <div class="tier-label">Tier 1 — Clients</div>
+              <h4>📱 Passenger Devices</h4>
+              <p style="font-size: 0.8rem; color: var(--gray-500); margin-bottom: 8px;">
+                Multiple phones, laptops, and counters sending concurrent HTTP requests.
+              </p>
+              <div class="arch-node">
+                <span>Laptop</span>
+                <span style="font-family: monospace; font-size: 0.75rem;">localhost:8000</span>
+              </div>
+              <div class="arch-node">
+                <span>Mobile Phone</span>
+                <span style="font-family: monospace; font-size: 0.75rem;" id="mobileIP">192.168.x.x:8000</span>
+              </div>
+            </div>
+
+            <!-- Tier 2: App Servers -->
+            <div class="arch-tier">
+              <div class="tier-label">Tier 2 — Application Cluster</div>
+              <h4>⚡ Round-Robin Load Balancer</h4>
+              <p style="font-size: 0.8rem; color: var(--gray-500); margin-bottom: 8px;">
+                Distributes requests across stateless app servers.
+              </p>
+              <div class="arch-node" id="srv1Box">
+                <span>App Server 1 (Mumbai)</span>
+                <span class="badge badge-blue" id="srv1Load">0 reqs</span>
+              </div>
+              <div class="arch-node" id="srv2Box">
+                <span>App Server 2 (Pune)</span>
+                <span class="badge badge-blue" id="srv2Load">0 reqs</span>
+              </div>
+              <div class="arch-node" id="srv3Box">
+                <span>App Server 3 (Delhi)</span>
+                <span class="badge badge-blue" id="srv3Load">0 reqs</span>
+              </div>
+            </div>
+
+            <!-- Tier 3: Storage Shards -->
+            <div class="arch-tier">
+              <div class="tier-label">Tier 3 — Distributed Storage</div>
+              <h4>🗄️ Regional Database Shards</h4>
+              <p style="font-size: 0.8rem; color: var(--gray-500); margin-bottom: 8px;">
+                Horizontally partitioned by train route. Each shard has a Primary + Replica.
+              </p>
+              <div class="arch-node">
+                <span>Western Shard</span>
+                <span class="badge badge-green">Primary + Replica</span>
+              </div>
+              <div class="arch-node">
+                <span>Northern Shard</span>
+                <span class="badge badge-green">Primary + Replica</span>
+              </div>
+              <div class="arch-node">
+                <span>Southern Shard</span>
+                <span class="badge badge-green">Primary + Replica</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Live Activity Feed -->
+      <div class="card">
+        <div class="card-header">
+          <span>📡 Live Distributed Activity Feed (Lamport-Ordered)</span>
+          <button class="btn-reset" onclick="refreshActivity()">Refresh</button>
+        </div>
+        <div class="card-body" style="padding: 12px;">
+          <div class="activity-feed" id="activityFeed">
+            <div style="color: #64748b; text-align: center; padding: 40px;">Waiting for distributed activity...</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+  </div>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
